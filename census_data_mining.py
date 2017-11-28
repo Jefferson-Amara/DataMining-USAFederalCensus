@@ -15,7 +15,6 @@ from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, auc
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn.tree import DecisionTreeClassifier
 
 # Configurando avisos do Pandas
 pd.options.mode.chained_assignment = None
@@ -36,6 +35,17 @@ def load_data(data_file_path, att_file_path, isTestData=False):
     
     return data
 
+def subs(data):
+    x=pd.DataFrame(data['family members under 18'].groupby(data['income level']).describe()).iat[0,2]
+    y=pd.DataFrame(data['country of birth father'].groupby(data['income level']).describe()).iat[0,2]
+    z=pd.DataFrame(data['country of birth mother'].groupby(data['income level']).describe()).iat[0,2]
+    
+    data['family members under 18'] = data['family members under 18'].replace(' ?', x)
+    data['country of birth mother'] = data['country of birth mother'].replace(' ?', y)
+    data['country of birth father'] = data['country of birth father'].replace(' ?', z)
+    
+    return data
+
 def pre_process_data(data, isTestData=False):
     # Substituindo valores numéricos int64 por float64
     numeric_data = data.select_dtypes(["int64"]).columns
@@ -49,10 +59,18 @@ def pre_process_data(data, isTestData=False):
     for i in data.columns:
         if data[i].dtypes == object:
             data[i] = data[i].astype("category")
+    
+    if not isTestData:
+        data=subs(data)            
+    
+    # Substituindo dados do tipo object por category
+    for i in data.columns:
+        if data[i].dtypes == object:
+            data[i] = data[i].astype("category")
             
-    # Selecionando atributos categóricos
     category_data = data.select_dtypes(["category"]).columns
     
+
     # Substituindo valores ausentes nos atributos categóricos
     data[category_data] = data[category_data].replace(' ?', 'NaN')
     
@@ -299,6 +317,19 @@ def predict_model(data, model):
     
     return predict_dt
 
+def logistic_analysis(data):
+    # Acessa os coeficientes do modelo de regressão linear e imprime gráfico de barras
+    modelo_LR = fit_model(data,LogisticRegression())
+    coef = pd.DataFrame(modelo_LR.coef_)
+    coef.columns = data_test.columns.values.T.tolist()
+    coef.plot(kind='bar',lw=2,colormap='jet',title='Contribuição dos atributos',legend=False);plt.axhline(0, color='k')
+    
+    # Imprime apenas os atributos cuja colboração é maior que 1 ou menor que -1
+    most_impor_attrib = coef[(coef >1.) | (coef < -1.)]
+    most_impor_attrib = most_impor_attrib.dropna(axis=1,how='all')
+    most_impor_attrib.plot(kind='bar',lw=2,colormap='jet',title='Contribuição dos atributos').legend(bbox_to_anchor=(1.2, 0.5));plt.axhline(0, color='k')
+    
+    return coef
 #=========================== Comparando modelos ===============================#
 
 # Carregando os dados
@@ -308,8 +339,8 @@ data = pre_process_data(data, isTestData=False)
 # Balanceando as classes
 data = oversampling_data(data)
 
-model_name_arr = ["LR", "KNN", "NB", "TREE"]
-model_arr = [LogisticRegression(), KNeighborsClassifier(), GaussianNB(), DecisionTreeClassifier()]
+model_name_arr = ["LR", "KNN", "NB"]
+model_arr = [LogisticRegression(), KNeighborsClassifier(), GaussianNB()]
     
 # Faz o comparativo entre os modelos
 compare_models(data, model_name_arr, model_arr)
@@ -328,11 +359,12 @@ data_columns = data.columns[0:(len(data.columns) - 1)]
 data_test = data_test[data_columns]
 
 # Cria um modelo do tipo escolhido
-best_model = fit_model(data, DecisionTreeClassifier())
+best_model = fit_model(data, KNeighborsClassifier())
 
 # Faz a predição para os dados de avaliação
 predict_best_model = predict_model(data_test, best_model)
 predict_best_model.to_csv("grupo07.csv", index=False)
 print(predict_best_model["Prediction"].value_counts())
 
-#==============================================================================#
+#===============Análise de coeficientes - Regressão Logística==================#
+coeficientes = logistic_analysis(data)

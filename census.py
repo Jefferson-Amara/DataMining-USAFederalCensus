@@ -13,12 +13,12 @@ atrib = pd.DataFrame(atrib.iloc[:,0])
 possible = pd.read_table("valores-possiveis.dat",sep=":",header=None)
 #Substituindo cabeçalhos originais das colunas pelos atributos
 data.columns = atrib.values.T.tolist()
-
 #Definindo atributos categoricos
 for i in data.columns:
     if data[i].dtypes == object:
         data[i] = data[i].astype('category')
-
+    print(data[i].value_counts())
+    
 #Selecionando atributos numericos
 dados_numericos = data._get_numeric_data()
 n = pd.DataFrame(dados_numericos.columns.values)
@@ -28,16 +28,17 @@ min_max_scaler = preprocessing.MinMaxScaler()
 numeric_scaled = min_max_scaler.fit_transform(dados_numericos)
 dados_numericos = pd.DataFrame(numeric_scaled)
 dados_numericos.columns = n.values.T.tolist()       
-        
-#Substituindo insconsistencias   
+ 
+#Substituindo insconsistencias  
+data2=data 
 data = data.replace( ' ?','-999' )
 
 #Concatenando dados categoricos e numericos apos pre-processamento
 dados_categoricos = data.select_dtypes(exclude=[np.number])
-data = pd.concat([dados_categoricos,dados_numericos],axis=1)
+data = pd.concat([dados_numericos,dados_categoricos],axis=1)
 
 #Liberando variáveis temporárias
-del atrib, i, n, numeric_scaled
+#del atrib, i, n, numeric_scaled
 
 
 ###############################################################################
@@ -57,12 +58,12 @@ dados_clean_category = data.select_dtypes(["category"]).columns
 data[dados_clean_category] = data[dados_clean_category].apply(lambda x: x.cat.codes)
 
 ##Selecionando atributos numericos
-#n = pd.DataFrame(data.columns.values)
+n = pd.DataFrame(data.columns.values)
 #
-##Normalizando dados numericos
-#min_max_scaler = preprocessing.MinMaxScaler()
-#numeric_scaled = min_max_scaler.fit_transform(data)
-#data = pd.DataFrame(numeric_scaled)
-#data.columns = n.values.T.tolist()      
+#Normalizando dados numericos
+min_max_scaler = preprocessing.MinMaxScaler()
+numeric_scaled = min_max_scaler.fit_transform(data)
+data = pd.DataFrame(numeric_scaled)
+data.columns = n.values.T.tolist()      
 
    
